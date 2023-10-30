@@ -34,7 +34,7 @@ def load_shit():
     stop_words = set(stopwords.words('english'))
     lemmatizer = nltk.stem.WordNetLemmatizer()
     model = fasttext.load_model('profanity_model_eng.bin')
-    # nltk.download('wordnet')
+    nltk.download('wordnet')
 
     return stop_words, lemmatizer, model
 
