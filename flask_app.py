@@ -30,7 +30,7 @@ def text_cleaning(text_data, stop_words, lemmatizer):
 
 def load_shit():
     # nltk.download('omw-1.4')
-    # nltk.download('stopwords')
+    nltk.download('stopwords')
     stop_words = set(stopwords.words('english'))
     lemmatizer = nltk.stem.WordNetLemmatizer()
     model = fasttext.load_model('profanity_model_eng.bin')
