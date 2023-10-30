@@ -1,0 +1,8 @@
+flask
+fasttext
+re
+nltk
+unicodedata
+emoji
+json
+time
