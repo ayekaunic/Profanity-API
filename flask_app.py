@@ -53,6 +53,7 @@ def cosine_similarity(sentence1, sentence2, model):
     return similarities
 
 def load_stuff():
+    nltk.download('stopwords')
     stop_words = set(stopwords.words('english'))
     lemmatizer = nltk.stem.WordNetLemmatizer()
     model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
