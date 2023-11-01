@@ -7,11 +7,13 @@ from nltk.corpus import stopwords
 import unicodedata
 from emoji import demojize
 import json
-import time
 from bp import better_profanity
+from sentence_transformers import SentenceTransformer, util
+
 
 app = Flask(__name__)
 
+# methods
 def text_cleaning(text_data, stop_words, lemmatizer):
     text_data = unicodedata.normalize('NFKD', text_data).encode('ascii', 'ignore').decode('utf-8', 'ignore')
     text_data = text_data.lower()
@@ -33,28 +35,47 @@ def load_shit():
     nltk.download('stopwords')
     stop_words = set(stopwords.words('english'))
     lemmatizer = nltk.stem.WordNetLemmatizer()
-    model = fasttext.load_model('profanity_model_eng.bin')
+    model = fasttext.load_model('/home/ayekaunic/mysite/profanity_model_eng.bin')
     nltk.download('wordnet')
 
     return stop_words, lemmatizer, model
 
+def cosine_similarity(sentence1, sentence2, model):
 
-# Awaein
-@app.route('/', methods = ["GET", "POST"])
-def handle_request():
-    # text = str(request.args.get('input'))
-    data_set = {'greeting': 'hello, world! :D'}
+    embedding_1 = model.encode(sentence1, convert_to_tensor = True)
+
+    similarities = []
+    embedding_2 = model.encode(sentence2, convert_to_tensor=True)
+
+    similarity = util.pytorch_cos_sim(embedding_1, embedding_2)
+    similarities.append(similarity.item())
+
+    return similarities
+
+def load_stuff():
+    stop_words = set(stopwords.words('english'))
+    lemmatizer = nltk.stem.WordNetLemmatizer()
+    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    nltk.download('wordnet')
+    return stop_words, lemmatizer, model
+
+
+
+# greetings
+@app.route('/', methods = ["GET"])
+def greetings():
+    data_set = {'greetings': 'hello, world! :D'}
     json_dump = json.dumps(data_set)
     return json_dump
 
 
-# English
+# english profanity
 @app.route('/profanity/english', methods=['POST', 'GET'])
 def check_profanity():
     try:
-        # data = request.get_json()
-        # user_input = data.get('input', '')
-        user_input = str(request.args.get('input'))
+        data = request.get_json()
+        user_input = data.get('input', '')
+        # user_input = str(request.args.get('input'))
         stop_words, lemmatizer, model = load_shit()
         user_input = text_cleaning(user_input, stop_words, lemmatizer)
         labels, probabilities = model.predict(user_input, k=2)
@@ -71,14 +92,51 @@ def check_profanity():
         return jsonify({"error": str(e)})
 
 
-# Roman Urdu
+# roman urdu
 @app.route('/profanity/romanUrdu', methods=['POST', 'GET'])
 def profanity_check():
     try:
-        # data = request.get_json()
-        # user_input = data.get('input', '')
-        user_input = str(request.args.get('input'))
+        data = request.get_json()
+        user_input = data.get('input', '')
+        # user_input = str(request.args.get('input'))
         profanity = better_profanity.Profanity()
         return jsonify({"Profane": profanity.contains_profanity(user_input)})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# similarty
+@app.route('/similarity', methods=['POST'])
+def check_duplicity():
+    try:
+        data = request.get_json()
+        title1 = data.get("title1", "")
+        description1 = data.get("description1", "")
+        foi1 = data.get("foi1", "")
+
+        title2 = data.get("title2", "")
+        description2 = data.get("description2", "")
+        foi2 = data.get("foi2", "")
+
+        stop_words, lemmatizer, model = load_stuff()
+
+        score = cosine_similarity(title1, title2, model)
+        total_score = [x * 1.0 for x in score]
+
+        clean_description1 = text_cleaning(description1, stop_words, lemmatizer)
+        clean_description2 = text_cleaning(description2, stop_words, lemmatizer)
+        score = cosine_similarity(clean_description1, clean_description2, model)
+        total_score[0] += score[0] * 1.0
+
+        score = cosine_similarity(foi1, foi2, model)
+        total_score[0] += score[0] * 1.0
+
+        average_score = total_score[0] / 3
+        average_score = average_score * 0.369 + 0.631
+
+        response = {
+        "similarity": average_score
+        }
+        return jsonify(response)
+
     except Exception as e:
         return jsonify({"error": str(e)})
